@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>A股财报分析系统</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0d1117; color: #e6edf3; font-family: 'Microsoft YaHei', sans-serif; }
+header { background: #161b22; padding: 16px 32px; border-bottom: 1px solid #30363d; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 20px; color: #58a6ff; }
+nav a { color: #8b949e; text-decoration: none; margin-left: 24px; font-size: 14px; }
+nav a:hover { color: #58a6ff; }
+.stats { display: flex; gap: 16px; padding: 24px 32px; }
+.stat-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px 32px; flex: 1; text-align: center; }
+.stat-card .num { font-size: 32px; font-weight: bold; color: #58a6ff; }
+.stat-card .label { font-size: 13px; color: #8b949e; margin-top: 4px; }
+.charts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; padding: 0 32px 32px; }
+.chart-box { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+.chart-box h3 { font-size: 14px; color: #8b949e; margin-bottom: 12px; }
+.chart { height: 300px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>A股上市公司财报分析系统</h1>
+  <nav>
+    <a href="/">概览</a>
+    <a href="/table">数据明细</a>
+  </nav>
+</header>
+
+<div class="stats">
+  <div class="stat-card"><div class="num">{{ stats.total }}</div><div class="label">财报记录总数</div></div>
+  <div class="stat-card"><div class="num">{{ stats.companies }}</div><div class="label">覆盖上市公司</div></div>
+  <div class="stat-card"><div class="num">{{ stats.periods }}</div><div class="label">统计报告期</div></div>
+</div>
+
+<div class="charts">
+  <div class="chart-box">
+    <h3>风险等级分布</h3>
+    <div id="risk" class="chart"></div>
+  </div>
+  <div class="chart-box">
+    <h3>净利率 TOP10（均值）</h3>
+    <div id="margin" class="chart"></div>
+  </div>
+  <div class="chart-box">
+    <h3>资产负债率 TOP10（均值）</h3>
+    <div id="debt" class="chart"></div>
+  </div>
+</div>
+
+<script>
+const riskLabels = {{ risk_data|safe }};
+const riskCnt = {{ risk_cnt|safe }};
+const top10Names = {{ top10_names|safe }};
+const top10Margins = {{ top10_margins|safe }};
+const debtNames = {{ debt_names|safe }};
+const debtRatios = {{ debt_ratios|safe }};
+
+const colors = { '稳健': '#3fb950', '中等风险': '#d29922', '高风险': '#f85149', '极高风险': '#8957e5' };
+
+echarts.init(document.getElementById('risk')).setOption({
+  tooltip: { trigger: 'item' },
+  series: [{ type: 'pie', radius: ['40%', '70%'],
+    data: riskLabels.map((l, i) => ({ name: l, value: riskCnt[i], itemStyle: { color: colors[l] } })),
+    label: { color: '#e6edf3' }
+  }]
+});
+
+echarts.init(document.getElementById('margin')).setOption({
+  tooltip: { trigger: 'axis' },
+  grid: { left: '20%', right: '5%' },
+  xAxis: { type: 'value', axisLabel: { color: '#8b949e', formatter: v => (v*100).toFixed(1)+'%' } },
+  yAxis: { type: 'category', data: top10Names, axisLabel: { color: '#e6edf3', fontSize: 11 } },
+  series: [{ type: 'bar', data: top10Margins, itemStyle: { color: '#58a6ff' } }]
+});
+
+echarts.init(document.getElementById('debt')).setOption({
+  tooltip: { trigger: 'axis' },
+  grid: { left: '20%', right: '5%' },
+  xAxis: { type: 'value', axisLabel: { color: '#8b949e', formatter: v => (v*100).toFixed(1)+'%' } },
+  yAxis: { type: 'category', data: debtNames, axisLabel: { color: '#e6edf3', fontSize: 11 } },
+  series: [{ type: 'bar', data: debtRatios, itemStyle: { color: '#f85149' } }]
+});
+</script>
+</body>
+</html>

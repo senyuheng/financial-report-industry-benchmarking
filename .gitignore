@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+libs/*.jar
+winutils.exe
+data/partitioned/
+data/finance_raw.parquet
+*.rar
+*.zip
+screenshots/

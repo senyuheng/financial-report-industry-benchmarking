@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>财报大数据分析平台</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e1a;color:#e6edf3;font-family:'Microsoft YaHei',sans-serif;min-height:100vh}
+header{background:linear-gradient(90deg,#0d1b2a,#1a2744);padding:18px 32px;border-bottom:1px solid #1e3a5f;display:flex;align-items:center;justify-content:space-between}
+header h1{color:#4d9ef7;font-size:22px;letter-spacing:2px}
+header .subtitle{color:#8b949e;font-size:13px;margin-top:4px}
+.badge{background:#1e3a5f;color:#4d9ef7;padding:4px 12px;border-radius:12px;font-size:12px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px 32px 0}
+.stat-card{background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4d9ef7,#7c5cbf)}
+.stat-card .val{font-size:28px;font-weight:700;color:#4d9ef7;margin-top:4px}
+.stat-card .label{font-size:12px;color:#8b949e}
+.stat-card .icon{position:absolute;right:16px;top:16px;font-size:28px;opacity:0.15}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px 32px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding:0 32px 16px}
+.card{background:#161b22;border:1px solid #1e3a5f;border-radius:10px;padding:16px}
+.card h3{color:#4d9ef7;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card h3::before{content:'';width:3px;height:14px;background:#4d9ef7;border-radius:2px}
+.chart{height:280px}
+.chart-tall{height:320px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:#8b949e;padding:8px 10px;text-align:left;border-bottom:1px solid #1e3a5f}
+td{padding:7px 10px;border-bottom:1px solid #0d1117;color:#e6edf3}
+tr:hover td{background:#1c2333}
+.rank{color:#4d9ef7;font-weight:bold}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px}
+.tag-warn{background:#3d1f1f;color:#f78166}
+.tag-ok{background:#1a2f1a;color:#3fb950}
+.bench{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+.bench-item{background:#0d1117;border-radius:8px;padding:14px;text-align:center;border:1px solid #1e3a5f}
+.bench-item .bval{font-size:24px;font-weight:700}
+.bench-item .blabel{font-size:11px;color:#8b949e;margin-top:4px}
+.pandas-color{color:#f78166}
+.spark-color{color:#3fb950}
+.conclusion{background:#0d1117;border-radius:8px;padding:12px;margin-top:12px;font-size:12px;color:#8b949e;line-height:1.6;border-left:3px solid #4d9ef7}
+</style>
+</head>
+
+<body>
+<header>
+  <div>
+    <h1>A股财报大数据分析平台</h1>
+    <div class="subtitle">基于 Apache Spark 3.3.4 + HDFS 分布式计算 · 100万条财务记录</div>
+  </div>
+  <span class="badge">集群运行中</span>
+</header>
+
+<div style="background:#161b22;border-bottom:1px solid #1e3a5f;padding:12px 32px;display:flex;gap:12px;align-items:center">
+  <select id="q-ind" style="background:#0d1117;color:#e6edf3;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:13px">
+    <option value="">全部行业</option>
+  </select>
+  <select id="q-year" style="background:#0d1117;color:#e6edf3;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:13px">
+    <option value="">全部年份</option>
+    <option>2019</option>
+    <option>2020</option>
+    <option>2021</option>
+    <option>2022</option>
+    <option>2023</option>
+  </select>
+  <input id="q-company" placeholder="搜索公司名..." style="background:#0d1117;color:#e6edf3;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:13px;width:180px">
+  <button onclick="doQuery()" style="background:#4d9ef7;color:#fff;border:none;padding:6px 20px;border-radius:6px;cursor:pointer;font-size:13px">查询</button>
+  <span id="q-status" style="color:#8b949e;font-size:12px"></span>
+</div>
+
+<div class="stats-row" id="stats-row">
+  <div class="stat-card"><div class="label">数据总量</div><div class="val" id="s-total">-</div><div class="icon">📊</div></div>
+  <div class="stat-card"><div class="label">覆盖行业数</div><div class="val" id="s-ind">-</div><div class="icon">🏭</div></div>
+  <div class="stat-card"><div class="label">异常企业数</div><div class="val" id="s-warn">14,114</div><div class="icon">⚠️</div></div>
+  <div class="stat-card"><div class="label">分析任务数</div><div class="val">4</div><div class="icon">✅</div></div>
+</div>
+
+<div class="grid2" style="padding-top:16px">
+  <div class="card"><h3>各行业年度总营收 TOP10（亿元）</h3><div id="c1" class="chart"></div></div>
+  <div class="card"><h3>各行业平均净利润率（%）</h3><div id="c2" class="chart"></div></div>
+</div>
+
+<div class="grid2" style="padding:0 32px 16px">
+  <div class="card"><h3>营收 TOP6 行业增长率趋势（%）</h3><div id="c3" class="chart-tall"></div></div>
+  <div class="card">
+    <h3>全行业净利润 Top10 企业（百万元）</h3>
+    <table>
+      <thead>
+        <tr><th>#</th><th>公司</th><th>行业</th><th>均利润(百万)</th></tr>
+      </thead>
+      <tbody id="top10-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="grid2" style="padding:0 32px 24px">
+  <div class="card">
+    <h3>Pandas vs Spark 性能对比实验</h3>
+    <div class="bench">
+      <div class="bench-item"><div class="bval pandas-color" id="b-pt">0.51s</div><div class="blabel">Pandas 耗时</div></div>
+      <div class="bench-item"><div class="bval spark-color" id="b-st">17.06s</div><div class="blabel">Spark 耗时</div></div>
+      <div class="bench-item"><div class="bval pandas-color" id="b-pc"></div><div class="blabel">Pandas CPU</div></div>
+      <div class="bench-item"><div class="bval spark-color" id="b-sc"></div><div class="blabel">Spark CPU</div></div>
+      <div class="bench-item"><div class="bval pandas-color" id="b-pm">323.9MB</div><div class="blabel">Pandas 内存</div></div>
+      <div class="bench-item"><div class="bval spark-color" id="b-sm">0.6MB</div><div class="blabel">Spark 内存</div></div>
+    </div>
+    <div class="conclusion" id="b-con"></div>
+  </div>
+  <div class="card"><h3>异常企业行业分布（利润为负且营收极高）</h3><div id="c4" class="chart"></div></div>
+</div>
+
+<script>
+const charts = ['c1','c2','c3','c4'].map(id=>echarts.init(document.getElementById(id)));
+const [c1,c2,c3,c4] = charts;
+const opt = (extra)=>({...{tooltip:{trigger:'axis'},grid:{left:55,right:15,bottom:35,top:20},textStyle:{color:'#8b949e'}}, ...extra});
+
+async function initIndustries(){
+  const inds = await fetch('/api/industries').then(r=>r.json());
+  const sel = document.getElementById('q-ind');
+  inds.forEach(ind=>{
+    const o=document.createElement('option');
+    o.value=o.textContent=ind;
+    sel.appendChild(o);
+  });
+}
+
+async function doQuery(){
+  const ind = document.getElementById('q-ind').value;
+  const yr = document.getElementById('q-year').value;
+  const co = document.getElementById('q-company').value;
+  document.getElementById('q-status').textContent = '查询中...';
+  const params = new URLSearchParams();
+  if(ind) params.append('industry', ind);
+  if(yr) params.append('year', yr);
+  if(co) params.append('company', co);
+  const data = await fetch('/api/query?'+params).then(r=>r.json());
+  document.getElementById('q-status').textContent = `返回 ${data.length} 条`;
+  if(data.length){
+    const quarters = [...new Set(data.map(r=>r.year+'Q'+r.quarter))].sort();
+    c1.setOption({
+      xAxis:{data:quarters},
+      series:[{
+        data:quarters.map(q=>{
+          const [y,qt]=q.split('Q');
+          const r=data.find(d=>d.year==y&&d.quarter==qt);
+          return r ? Math.round(r['revenue']/1e8) : 0;
+        })
+      }]
+    });
+  }
+}
+
+initIndustries();
+
+async function loadAll(){
+  const [t1,t2,t3,t4,bm] = await Promise.all([
+    fetch('/api/task1').then(r=>r.json()),
+    fetch('/api/task2').then(r=>r.json()),
+    fetch('/api/task3').then(r=>r.json()),
+    fetch('/api/task4').then(r=>r.json()),
+    fetch('/api/benchmark').then(r=>r.json()),
+  ]);
+
+  const inds = [...new Set(t1.map(r=>r.industry))];
+  document.getElementById('s-total').textContent='1,000,000';
+  document.getElementById('s-ind').textContent=inds.length;
+
+  // 按 2023 年营收排序，取前 10 / 前 6
+  const t1_23 = t1.filter(r=>r.year==2023).sort((a,b)=>b['总营收亿']-a['总营收亿']);
+  const ind10 = t1_23.slice(0,10).map(r=>r.industry);
+  const ind6  = t1_23.slice(0,6).map(r=>r.industry);
+
+  // c1: 各行业 2023 年营收 TOP10
+  c1.setOption(opt({
+    xAxis:{type:'category',data:t1_23.slice(0,10).map(r=>r.industry),axisLabel:{color:'#8b949e',rotate:30,fontSize:10}},
+    yAxis:{type:'value',axisLabel:{color:'#8b949e'}},
+    series:[{
+      type:'bar',
+      data:t1_23.slice(0,10).map(r=>r['总营收亿']),
+      itemStyle:{
+        color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[
+          {offset:0,color:'#4d9ef7'},{offset:1,color:'#1e3a5f'}
+        ]}
+      }
+    }]
+  }));
+
+  // c2: 各行业平均净利润率（只展示 TOP10 行业）
+  const avgMap={};
+  t1.forEach(r=>{
+    if(!avgMap[r.industry]) avgMap[r.industry]=[];
+    avgMap[r.industry].push(r['平均净利润率%']);
+  });
+  const avgList = ind10.map(k=>(avgMap[k].reduce((a,b)=>a+b)/avgMap[k].length).toFixed(2));
+  c2.setOption(opt({
+    xAxis:{type:'category',data:ind10,axisLabel:{color:'#8b949e',rotate:30,fontSize:10}},
+    yAxis:{type:'value',axisLabel:{color:'#8b949e'}},
+    series:[{
+      type:'bar', data:avgList,
+      itemStyle:{color:(p)=>p.value>=0?'#3fb950':'#f78166'}
+    }]
+  }));
+
+  // c3: 营收 TOP6 行业增长率趋势（6 条线，每条不同颜色）
+  const years=[...new Set(t3.map(r=>r.year))].sort();
+  const lineColors=['#4d9ef7','#f78166','#3fb950','#a371f7','#e3b341','#56d4dd'];
+  const series3=ind6.map((ind,idx)=>({
+    name:ind,type:'line',smooth:true,
+    lineStyle:{color:lineColors[idx],width:2.5},
+    symbol:'circle',symbolSize:4,
+    data:years.map(y=>{
+      const r=t3.find(d=>d.industry===ind&&d.year===y);
+      return r ? r['增长率%'] : null;
+    })
+  }));
+  c3.setOption({
+    tooltip:{trigger:'axis'},
+    legend:{textStyle:{color:'#8b949e'},top:0,type:'scroll'},
+    grid:{left:55,right:15,bottom:35,top:45},
+    xAxis:{type:'category',data:years,axisLabel:{color:'#8b949e'}},
+    yAxis:{type:'value',axisLabel:{color:'#8b949e'}},
+    series:series3
+  });
+
+  // Top10 表格：各行业利润冠军（每行业取 rank=1，全行业排序取前10）
+  const tb=document.getElementById('top10-body');
+  tb.innerHTML='';
+  const champions = t4.filter(r=>r.rank==1).sort((a,b)=>b.avg_profit-a.avg_profit).slice(0,10);
+  const colors={'银行':'#4d9ef7','白酒':'#f78166','证券':'#56d4dd','啤酒':'#f7c948','全国地产':'#e3b341','汽车整车':'#e0558a','互联网':'#4d9ef7','中成药':'#3fb950','电气设备':'#a371f7','煤炭开采':'#f78166','生物制药':'#3fb950','化学制药':'#a371f7','医疗保健':'#e0558a','旅游服务':'#56d4dd','机场':'#a371f7','铝':'#e3b341','普钢':'#f7c948','小金属':'#4d9ef7','元器件':'#3fb950','IT设备':'#56d4dd','家用电器':'#f78166','乳制品':'#e0558a','染料涂料':'#f7c948','汽车配件':'#a371f7','空运':'#e3b341'};
+  champions.forEach((r,i)=>{
+    const c=colors[r.industry]||'#1e3a5f';
+    tb.innerHTML+=`<tr><td class="rank">${i+1}</td><td>${r.company_name}</td><td><span class="tag" style="background:${c};color:#fff">${r.industry}</span></td><td>${r.avg_profit}</td></tr>`;
+  });
+
+  // c4: 异常企业行业分布（task2 真实数据，按行业计数）
+  const abnormalCount = {};
+  t2.forEach(r=>{ abnormalCount[r.industry]=(abnormalCount[r.industry]||0)+1; });
+  const abIndustries = Object.keys(abnormalCount).sort((a,b)=>abnormalCount[b]-abnormalCount[a]);
+  c4.setOption(opt({
+    xAxis:{type:'value',axisLabel:{color:'#8b949e'}},
+    yAxis:{type:'category',data:abIndustries,axisLabel:{color:'#8b949e',fontSize:10}},
+    series:[{
+      type:'bar',
+      data:abIndustries.map(k=>abnormalCount[k]),
+      itemStyle:{color:'#f78166'}
+    }]
+  }));
+
+  // benchmark
+  document.getElementById('b-pt').textContent=bm.pandas.time+'s';
+  document.getElementById('b-st').textContent=bm.spark.time+'s';
+  document.getElementById('b-pm').textContent=bm.pandas.memory_mb+'MB';
+  document.getElementById('b-sm').textContent=bm.spark.memory_mb+'MB';
+  document.getElementById('b-pc').textContent=bm.pandas.cpu+'%';
+  document.getElementById('b-sc').textContent=bm.spark.cpu+'%';
+  document.getElementById('b-con').textContent=bm.conclusion;
+}
+
+loadAll();
+window.addEventListener('resize',()=>charts.forEach(c=>c.resize()));
+</script>
+</body>
+</html>

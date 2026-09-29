@@ -1,0 +1,8 @@
+pandas>=1.5
+numpy>=1.23
+pyspark>=3.4
+pymysql>=1.0
+tushare>=1.2.89
+flask>=2.3
+faker>=19.0
+pyarrow>=12.0

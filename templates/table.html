@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>数据明细 - A股财报分析</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0d1117; color: #e6edf3; font-family: 'Microsoft YaHei', sans-serif; }
+header { background: #161b22; padding: 16px 32px; border-bottom: 1px solid #30363d; display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 20px; color: #58a6ff; }
+nav a { color: #8b949e; text-decoration: none; margin-left: 24px; font-size: 14px; }
+nav a:hover { color: #58a6ff; }
+.wrap { padding: 24px 32px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #161b22; color: #8b949e; padding: 10px 12px; border-bottom: 1px solid #30363d; text-align: left; white-space: nowrap; }
+td { padding: 9px 12px; border-bottom: 1px solid #21262d; white-space: nowrap; }
+tr:hover td { background: #161b22; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
+.稳健 { background: #0d4429; color: #3fb950; }
+.中等风险 { background: #2d2a00; color: #d29922; }
+.高风险 { background: #3d0e0e; color: #f85149; }
+.极高风险 { background: #2d1b6e; color: #8957e5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>A股上市公司财报分析系统</h1>
+  <nav><a href="/">概览</a><a href="/table">数据明细</a></nav>
+</header>
+<div class="wrap">
+<table>
+  <thead>
+    <tr><th>股票代码</th><th>公司名称</th><th>报告期</th><th>营收(亿)</th><th>净利率%</th><th>资产负债率%</th><th>ROA%</th><th>风险等级</th></tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r['StockCode'] }}</td>
+      <td>{{ r['CompanyName'] }}</td>
+      <td>{{ r['Period'] }}</td>
+      <td>{{ r['Revenue亿'] }}</td>
+      <td>{{ r['净利率'] }}</td>
+      <td>{{ r['资产负债率'] }}</td>
+      <td>{{ r['ROA'] }}</td>
+      <td><span class="tag {{ r['RiskLevel'] }}">{{ r['RiskLevel'] }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+</body>
+</html>
